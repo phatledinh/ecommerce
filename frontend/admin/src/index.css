@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/* Đảm bảo html và body có chiều cao 100% */
+html,
+body,
+#root {
+    height: 100%;
+    margin: 0;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
