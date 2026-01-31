@@ -29,12 +29,14 @@ public class InventoryReceipt extends BaseEntity {
     private BigDecimal totalAmount;
     
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private ReceiptStatus status = ReceiptStatus.COMPLETED;
     
     @Column(columnDefinition = "TEXT")
     private String note;
     
     @OneToMany(mappedBy = "receipt", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<InventoryReceiptDetail> details = new HashSet<>();
 }
 

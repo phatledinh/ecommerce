@@ -7,7 +7,7 @@ import BannerFormPage from "./pages/Banner/BannerFormPage";
 import BannerPreviewPage from "./pages/Banner/BannerPreviewPage";
 
 import Login from "./pages/Auth/Login";
-import Register from "./pages/Auth/Register";
+import ForgotPasswordPage from "./pages/Auth/ForgotPasswordPage";
 import PrivateRoute from "./components/auth/PrivateRoute";
 
 import ProductList from "./pages/Product/ProductList";
@@ -51,8 +51,11 @@ function App() {
         <Suspense fallback={<LoadingSpinner fullscreen />}>
             <Routes>
                 {/* Auth Router */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
+                <Route path="/admin/login" element={<Login />} />
+                <Route
+                    path="/admin/forgot-password"
+                    element={<ForgotPasswordPage />}
+                />
                 {/* Admin routes */}
                 <Route
                     path="/admin"

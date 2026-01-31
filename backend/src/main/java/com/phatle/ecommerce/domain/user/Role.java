@@ -24,6 +24,7 @@ public class Role extends BaseEntityWithoutAudit {
     private String description;
     
     @ManyToMany(mappedBy = "roles")
+    @Builder.Default
     private Set<User> users = new HashSet<>();
     
     @ManyToMany(fetch = FetchType.LAZY)
@@ -32,5 +33,6 @@ public class Role extends BaseEntityWithoutAudit {
         joinColumns = @JoinColumn(name = "role_id"),
         inverseJoinColumns = @JoinColumn(name = "permission_id")
     )
+    @Builder.Default
     private Set<Permission> permissions = new HashSet<>();
 }

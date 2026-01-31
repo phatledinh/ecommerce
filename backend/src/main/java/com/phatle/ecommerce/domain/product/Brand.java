@@ -27,8 +27,10 @@ public class Brand extends BaseEntity {
     private String description;
     
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
     
     @OneToMany(mappedBy = "brand", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<Product> products = new HashSet<>();
 }

@@ -24,5 +24,6 @@ public class Cart extends BaseEntityWithoutAudit {
     private String sessionId;
     
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<CartItem> cartItems = new HashSet<>();
 }

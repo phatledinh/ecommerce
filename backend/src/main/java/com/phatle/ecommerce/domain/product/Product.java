@@ -48,20 +48,26 @@ public class Product extends BaseEntity {
     private String otherOffers;
     
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
     
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<ProductImage> images = new HashSet<>();
     
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<ProductVariant> variants = new HashSet<>();
     
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<ProductSpec> specs = new HashSet<>();
     
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<Review> reviews = new HashSet<>();
     
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<Wishlist> wishlists = new HashSet<>();
 }

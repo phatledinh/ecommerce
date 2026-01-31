@@ -1,23 +1,22 @@
 import axios from "axios";
 
 const axiosClient = axios.create({
-    baseURL: "http://localhost:8080",
-    withCredentials: false,
+    baseURL: "http://localhost:8080/api",
+    headers: {
+        "Content-Type": "application/json",
+    },
+    withCredentials: true,
 });
 
 axiosClient.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("accessToken");
-
-        if (token && token !== "null" && token !== "undefined") {
+        if (token) {
             config.headers.Authorization = `Bearer ${token}`;
-        } else {
-            delete config.headers.Authorization;
         }
-
         return config;
     },
-    (error) => Promise.reject(error)
+    (error) => Promise.reject(error),
 );
 
 axiosClient.interceptors.response.use(
@@ -29,31 +28,27 @@ axiosClient.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                const refreshToken = localStorage.getItem("refreshToken");
+                const res = await axiosClient.get("/auth/refresh");
 
-                if (!refreshToken) throw new Error("No refresh token");
+                if (res.data && res.data.accessToken) {
+                    const newAccessToken = res.data.accessToken;
 
-                const res = await axios.post(
-                    "http://localhost:8080/auth/refresh",
-                    { refreshToken }
-                );
+                    localStorage.setItem("accessToken", newAccessToken);
 
-                const newAccessToken = res.data.data.accessToken;
+                    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                    return axiosClient(originalRequest);
+                }
+            } catch (refreshError) {
+                console.error("Refresh token failed:", refreshError);
 
-                localStorage.setItem("accessToken", newAccessToken);
-
-                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-                return axiosClient(originalRequest);
-            } catch {
                 localStorage.removeItem("accessToken");
-                localStorage.removeItem("refreshToken");
-                window.location.href = "/login";
+                localStorage.removeItem("user");
+                window.location.href = "/admin/login";
+                return Promise.reject(refreshError);
             }
         }
-
         return Promise.reject(error);
-    }
+    },
 );
 
 export default axiosClient;

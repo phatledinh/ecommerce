@@ -38,6 +38,7 @@ public class Discount extends BaseEntity {
     private BigDecimal maxDiscountAmount;
     
     @Column(name = "min_order_value", precision = 15, scale = 2)
+    @Builder.Default
     private BigDecimal minOrderValue = BigDecimal.ZERO;
     
     @Column(name = "start_date", nullable = false)
@@ -47,21 +48,27 @@ public class Discount extends BaseEntity {
     private LocalDateTime endDate;
     
     @Column(name = "usage_limit")
+    @Builder.Default
     private Integer usageLimit = 0;
     
     @Column(name = "usage_count")
+    @Builder.Default
     private Integer usageCount = 0;
     
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
     
     @OneToMany(mappedBy = "discount", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<DiscountTarget> targets = new HashSet<>();
     
     @OneToMany(mappedBy = "discount", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<UserDiscountUsage> usages = new HashSet<>();
     
     @OneToMany(mappedBy = "discountApplied", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<Order> orders = new HashSet<>();
 }
 

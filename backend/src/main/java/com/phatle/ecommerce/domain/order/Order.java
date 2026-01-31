@@ -37,15 +37,18 @@ public class Order extends BaseEntity {
     private BigDecimal subtotal;
     
     @Column(name = "shipping_fee", precision = 15, scale = 2)
+    @Builder.Default
     private BigDecimal shippingFee = BigDecimal.ZERO;
     
     @Column(precision = 15, scale = 2)
+    @Builder.Default
     private BigDecimal discount = BigDecimal.ZERO;
     
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal total;
     
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
     
     @Enumerated(EnumType.STRING)
@@ -54,6 +57,7 @@ public class Order extends BaseEntity {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status")
+    @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
     
     @ManyToOne(fetch = FetchType.LAZY)
@@ -61,11 +65,14 @@ public class Order extends BaseEntity {
     private Discount discountApplied;
     
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<OrderItem> orderItems = new HashSet<>();
     
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<UserDiscountUsage> discountUsages = new HashSet<>();
     
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<PaymentTransaction> paymentTransactions = new HashSet<>();
 }

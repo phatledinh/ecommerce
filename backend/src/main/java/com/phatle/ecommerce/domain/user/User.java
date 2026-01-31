@@ -33,6 +33,9 @@ public class User extends BaseEntityWithoutAudit {
     private String phone;
     
     private String avatar;
+
+    @Column(name = "refresh_token", columnDefinition = "TEXT") 
+    private String refreshToken;
     
     @Enumerated(EnumType.STRING)
     private UserStatus status = UserStatus.ACTIVE;

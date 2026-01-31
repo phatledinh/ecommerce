@@ -28,17 +28,22 @@ public class Category extends BaseEntity {
     private Category parent;
     
     @OneToMany(mappedBy = "parent")
+    @Builder.Default
     private Set<Category> children = new HashSet<>();
     
     @Column(name = "level")
+    @Builder.Default
     private Integer level = 0;
     
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
     
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<CategoryAttribute> categoryAttributes = new HashSet<>();
     
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL)
+    @Builder.Default
     private Set<Product> products = new HashSet<>();
 }
