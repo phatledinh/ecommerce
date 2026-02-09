@@ -3,7 +3,6 @@ package com.phatle.ecommerce.controller;
 import com.phatle.ecommerce.annotation.ApiMessage;
 import com.phatle.ecommerce.domain.user.User;
 import com.phatle.ecommerce.dto.request.LoginRequest;
-import com.phatle.ecommerce.dto.request.RegisterRequest;
 import com.phatle.ecommerce.dto.response.LoginResponse;
 import com.phatle.ecommerce.dto.response.UserResponse;
 import com.phatle.ecommerce.service.UserService;
@@ -17,10 +16,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,108 +32,61 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final SecurityUtil securityUtil;
     private final UserService userService;
-    
+
     @Value("${phatle.jwt.refresh-token-validity-in-seconds}")
     private long refreshTokenExpiration;
 
     @PostMapping("/login")
-    @ApiMessage("Login successfully")
+    @ApiMessage("Đăng nhập thành công")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginDTO) {
+        User currentUser = userService.login(loginDTO.getEmail(), loginDTO.getPassword());
+
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                 loginDTO.getEmail(), loginDTO.getPassword());
-        
+
         Authentication authentication = authenticationManager.authenticate(authenticationToken);
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        User currentUser = userService.handleGetUserByUsername(loginDTO.getEmail());
         UserResponse userResponse = userService.convertToUserResponse(currentUser);
 
         String accessToken = this.securityUtil.createAccessToken(authentication, userResponse);
-
         String refreshToken = this.securityUtil.createRefreshToken(loginDTO.getEmail(), userResponse);
 
         this.userService.updateUserToken(refreshToken, loginDTO.getEmail());
 
         ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshToken)
                 .httpOnly(true)
-                .secure(true) 
+                .secure(true)
                 .path("/")
                 .maxAge(refreshTokenExpiration)
                 .build();
 
-        LoginResponse res = LoginResponse.builder()
-                .accessToken(accessToken)
-                .user(userResponse) 
-                .build();
-
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(res);
+                .body(LoginResponse.builder()
+                        .accessToken(accessToken)
+                        .user(userResponse)
+                        .build());
     }
 
-    @PostMapping("/register")
-    @ApiMessage("Register successfully")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest registerDTO) {
-        if (userService.existsByEmail(registerDTO.getEmail())) {
-            throw new RuntimeException("Email đã tồn tại");
-        }
-        if (registerDTO.getPhone() != null && userService.existsByPhone(registerDTO.getPhone())) {
-            throw new RuntimeException("Số điện thoại đã tồn tại");
-        }
-        
-        User newUser = userService.registerCustomer(registerDTO);
-        
-        return ResponseEntity.status(201)
-                .body(userService.convertToUserResponse(newUser));
-    }
-    
-    @PostMapping(value = "/register-with-avatar", consumes = "multipart/form-data")
-    @ApiMessage("Register with avatar successfully")
-    public ResponseEntity<UserResponse> registerWithAvatar(
-            @RequestPart("registerData") String registerData,
-            @RequestPart(value = "avatar", required = false) MultipartFile avatarFile) {
-        
-        RegisterRequest registerDTO = userService.parseRegisterData(registerData);
-        
-        if (userService.existsByEmail(registerDTO.getEmail())) {
-            throw new RuntimeException("Email đã tồn tại");
-        }
-        
-        User newUser = userService.registerCustomerWithAvatar(registerDTO, avatarFile);
-        
-        return ResponseEntity.status(201)
-                .body(userService.convertToUserResponse(newUser));
-    }
-
-    @GetMapping("/account")
-    @ApiMessage("Fetch account successfully")
-    public ResponseEntity<UserResponse> getAccount() {
-        String email = SecurityUtil.getCurrentUserLogin()
-                .orElseThrow(() -> new RuntimeException("Unauthorized: Không tìm thấy thông tin user"));
-
-        User currentUser = userService.handleGetUserByUsername(email);
-        return ResponseEntity.ok(userService.convertToUserResponse(currentUser));
-    }
-    
     @GetMapping("/refresh")
-    @ApiMessage("Refresh token successfully")
+    @ApiMessage("Lấy token mới thành công")
     public ResponseEntity<LoginResponse> refreshToken(@CookieValue(name = "refresh_token", required = false) String refreshToken) {
-        if (refreshToken == null) {
-             throw new RuntimeException("Bạn chưa đăng nhập (Không có refresh token)");
-        }
+        if (refreshToken == null) throw new RuntimeException("Refresh token không tồn tại");
 
         Jwt decodedToken = this.securityUtil.checkValidRefreshToken(refreshToken);
         String email = decodedToken.getSubject();
 
         User currentUser = userService.getUserByRefreshTokenAndEmail(refreshToken, email);
-        if (currentUser == null) {
-            throw new RuntimeException("Refresh token không hợp lệ hoặc đã hết hạn");
-        }
+        if (currentUser == null) throw new RuntimeException("Refresh token không hợp lệ");
 
         UserResponse userResponse = userService.convertToUserResponse(currentUser);
 
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                currentUser.getEmail(), null, null); 
+        List<SimpleGrantedAuthority> authorities = currentUser.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName()))
+                .collect(Collectors.toList());
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken(email, null, authorities);
 
         String newAccessToken = this.securityUtil.createAccessToken(authentication, userResponse);
         String newRefreshToken = this.securityUtil.createRefreshToken(email, userResponse);
@@ -145,40 +100,27 @@ public class AuthController {
                 .maxAge(refreshTokenExpiration)
                 .build();
 
-        LoginResponse res = LoginResponse.builder()
-                .accessToken(newAccessToken)
-                .user(userResponse)
-                .build();
-
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(res);
+                .body(LoginResponse.builder()
+                        .accessToken(newAccessToken)
+                        .user(userResponse)
+                        .build());
     }
-    
+
     @PostMapping("/logout")
-    @ApiMessage("Logout successfully")
+    @ApiMessage("Đăng xuất thành công")
     public ResponseEntity<Void> logout(@CookieValue(name = "refresh_token", required = false) String refreshToken) {
         if (refreshToken != null && !refreshToken.isEmpty()) {
             try {
-                 Jwt decodedToken = this.securityUtil.checkValidRefreshToken(refreshToken);
-                 String email = decodedToken.getSubject();
-                 this.userService.clearUserToken(email);
-            } catch (Exception e) {
-                System.out.println("Logout warning: " + e.getMessage());
-            }
+                Jwt decodedToken = this.securityUtil.checkValidRefreshToken(refreshToken);
+                this.userService.clearUserToken(decodedToken.getSubject());
+            } catch (Exception ignored) {}
         }
-        
+
+        ResponseCookie cookie = ResponseCookie.from("refresh_token", "").httpOnly(true).secure(true).path("/").maxAge(0).build();
         SecurityContextHolder.clearContext();
-        
-        ResponseCookie cookie = ResponseCookie.from("refresh_token", "")
-                .httpOnly(true)
-                .secure(true) 
-                .path("/")
-                .maxAge(0) 
-                .build();
-        
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(null);
+
+        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).build();
     }
 }

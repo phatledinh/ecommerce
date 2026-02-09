@@ -1,10 +1,12 @@
-// pages/attributes/AttributeForm.jsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAttribute } from "../../hooks/useAttribute";
 import {
     ArrowLeftIcon,
-    CheckCircleIcon,
-    InformationCircleIcon,
+    TrashIcon,
+    Bars3Icon,
+    SparklesIcon,
+    PlusIcon,
 } from "@heroicons/react/24/outline";
 
 const AttributeForm = () => {
@@ -12,412 +14,483 @@ const AttributeForm = () => {
     const navigate = useNavigate();
     const isEditMode = !!id;
 
+    const { fetchAttributeById, createAttribute, updateAttribute, loading } =
+        useAttribute();
+
     const [formData, setFormData] = useState({
         name: "",
         code: "",
         unit: "",
-        data_type: "STRING",
-        input_type: "TEXT",
-        is_required: false,
-        is_variant: false,
-        is_filterable: false,
+        dataType: "STRING",
+        inputType: "TEXT",
+        isRequired: false,
+        isVariant: false,
+        isFilterable: false,
     });
 
+    const [options, setOptions] = useState([
+        { id: Date.now(), displayName: "", value: "", sortOrder: 0 },
+    ]);
+
     const [errors, setErrors] = useState({});
+    const [touchedCode, setTouchedCode] = useState(false);
 
-    const dataTypeOptions = [
-        { value: "STRING", label: "Chuỗi (STRING)" },
-        { value: "NUMBER", label: "Số (NUMBER)" },
-        { value: "BOOLEAN", label: "Boolean" },
+    const INPUT_TYPES = [
+        { id: "TEXT", label: "Text Box", icon: "Aa", dataType: "STRING" },
+        { id: "TEXTAREA", label: "Text Area", icon: "¶", dataType: "STRING" },
+        { id: "NUMBER", label: "Number", icon: "123", dataType: "INTEGER" },
+        { id: "DATE", label: "Date Picker", icon: "📅", dataType: "DATE" },
+        {
+            id: "SELECT",
+            label: "Dropdown",
+            icon: "▼",
+            dataType: "STRING",
+            hasOptions: true,
+        },
+        {
+            id: "RADIO",
+            label: "Radio Button",
+            icon: "◉",
+            dataType: "STRING",
+            hasOptions: true,
+        },
+        {
+            id: "CHECKBOX",
+            label: "Multi Select",
+            icon: "☑",
+            dataType: "STRING",
+            hasOptions: true,
+        },
     ];
 
-    const inputTypeOptions = [
-        { value: "TEXT", label: "Text" },
-        { value: "SELECT", label: "Select" },
-        { value: "RADIO", label: "Radio" },
-        { value: "CHECKBOX", label: "Checkbox" },
-        { value: "TEXTAREA", label: "Textarea" },
-    ];
-
-    // Load data nếu là edit mode
     useEffect(() => {
         if (isEditMode) {
-            // Fetch attribute data from API
-            const mockAttribute = {
-                id: id,
-                name: "Màu sắc",
-                code: "COLOR_ATTR",
-                unit: "",
-                data_type: "STRING",
-                input_type: "SELECT",
-                is_required: true,
-                is_variant: true,
-                is_filterable: true,
+            const loadData = async () => {
+                const data = await fetchAttributeById(id);
+                if (data) {
+                    setFormData({
+                        name: data.name,
+                        code: data.code,
+                        unit: data.unit || "",
+                        dataType: data.dataType,
+                        inputType: data.inputType,
+                        isRequired: data.isRequired,
+                        isVariant: data.isVariant,
+                        isFilterable: data.isFilterable,
+                    });
+
+                    if (data.options && data.options.length > 0) {
+                        setOptions(
+                            data.options.map((opt) => ({
+                                id: opt.id,
+                                displayName: opt.displayName,
+                                value: opt.value,
+                                sortOrder: opt.sortOrder,
+                            })),
+                        );
+                    } else {
+                        setOptions([
+                            {
+                                id: Date.now(),
+                                displayName: "",
+                                value: "",
+                                sortOrder: 0,
+                            },
+                        ]);
+                    }
+                    setTouchedCode(true);
+                }
             };
-            setFormData(mockAttribute);
+            loadData();
         }
-    }, [id, isEditMode]);
+    }, [isEditMode, id, fetchAttributeById]);
 
-    const handleChange = (field, value) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
-
-        // Clear error when field is edited
-        if (errors[field]) {
-            setErrors((prev) => ({ ...prev, [field]: null }));
+    const handleNameChange = (val) => {
+        const updates = { name: val };
+        if (!isEditMode && !touchedCode) {
+            const generatedCode = val
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toUpperCase()
+                .trim()
+                .replace(/[^A-Z0-9 ]/g, "")
+                .replace(/\s+/g, "_");
+            updates.code = generatedCode;
         }
-
-        // Auto-enable variant for SELECT/RADIO/CHECKBOX
-        if (
-            field === "input_type" &&
-            ["SELECT", "RADIO", "CHECKBOX"].includes(value)
-        ) {
-            setFormData((prev) => ({ ...prev, is_variant: true }));
-        }
+        setFormData((prev) => ({ ...prev, ...updates }));
+        if (errors.name) setErrors((prev) => ({ ...prev, name: null }));
     };
 
-    const validateForm = () => {
+    const handleOptionChange = (id, field, value) => {
+        setOptions((prev) =>
+            prev.map((opt) =>
+                opt.id === id ? { ...opt, [field]: value } : opt,
+            ),
+        );
+    };
+
+    const addOption = () => {
+        setOptions((prev) => [
+            ...prev,
+            {
+                id: Date.now(),
+                displayName: "",
+                value: "",
+                sortOrder: prev.length,
+            },
+        ]);
+    };
+
+    const removeOption = (id) => {
+        if (options.length === 1) return;
+        setOptions((prev) => prev.filter((opt) => opt.id !== id));
+    };
+
+    const validate = () => {
         const newErrors = {};
+        if (!formData.name.trim()) newErrors.name = "Vui lòng nhập tên";
+        if (!formData.code.trim()) newErrors.code = "Vui lòng nhập mã";
 
-        if (!formData.name.trim()) {
-            newErrors.name = "Tên thuộc tính là bắt buộc";
+        const currentType = INPUT_TYPES.find(
+            (t) => t.id === formData.inputType,
+        );
+        if (currentType?.hasOptions) {
+            const hasEmpty = options.some(
+                (o) => !o.displayName.trim() || !o.value.trim(),
+            );
+            if (hasEmpty)
+                newErrors.options = "Vui lòng điền đầy đủ Nhãn và Giá trị";
         }
-
-        if (!formData.code.trim()) {
-            newErrors.code = "Mã thuộc tính là bắt buộc";
-        } else if (!/^[A-Z_]+$/.test(formData.code)) {
-            newErrors.code =
-                "Mã phải viết hoa và chỉ chứa chữ cái và dấu gạch dưới";
-        }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validate()) return;
 
-        if (!validateForm()) {
-            return;
+        const currentType = INPUT_TYPES.find(
+            (t) => t.id === formData.inputType,
+        );
+
+        const payload = {
+            ...formData,
+            options: currentType?.hasOptions ? options : [],
+        };
+
+        let result;
+        if (isEditMode) {
+            result = await updateAttribute(id, payload);
+        } else {
+            result = await createAttribute(payload);
         }
 
-        // Xử lý lưu thuộc tính
-        console.log("Saving attribute:", formData);
-
-        // Sau khi lưu thành công
-        alert(
-            isEditMode
-                ? "Cập nhật thuộc tính thành công!"
-                : "Tạo thuộc tính thành công!",
-        );
-        navigate("/admin/attributes");
-    };
-
-    const handleCancel = () => {
-        if (
-            window.confirm(
-                "Bạn có chắc muốn hủy? Các thay đổi sẽ không được lưu.",
-            )
-        ) {
+        if (result.success) {
+            alert("Lưu thành công!");
             navigate("/admin/attributes");
+        } else {
+            alert(`Lỗi: ${result.message}`);
         }
     };
 
     return (
-        <div className="p-6">
-            {/* Header */}
-            <div className="mb-6">
-                <button
-                    onClick={() => navigate("/admin/attributes")}
-                    className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-                >
-                    <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                    Quay lại danh sách
-                </button>
-                <h1 className="text-2xl font-bold text-gray-900">
-                    {isEditMode ? "Chỉnh sửa Thuộc tính" : "Tạo Thuộc tính Mới"}
-                </h1>
+        <div className="min-h-screen bg-gray-50/50 p-6">
+            <div className="max-w-5xl mx-auto mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-2 hover:bg-white rounded-full transition-colors"
+                    >
+                        <ArrowLeftIcon className="w-5 h-5 text-gray-500" />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">
+                            {isEditMode
+                                ? `Cập nhật: ${formData.name}`
+                                : "Tạo thuộc tính mới"}
+                        </h1>
+                        <p className="text-sm text-gray-500">
+                            Định nghĩa các thuộc tính sản phẩm (Master Data)
+                        </p>
+                    </div>
+                </div>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
+                    >
+                        Hủy bỏ
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {loading ? (
+                            "Đang lưu..."
+                        ) : (
+                            <>
+                                <SparklesIcon className="w-4 h-4" /> Lưu thuộc
+                                tính
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
-            <form
-                onSubmit={handleSubmit}
-                className="bg-white rounded-lg border border-gray-200 p-6"
-            >
-                {/* Basic Info Section */}
-                <div className="mb-8">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        Thông tin cơ bản
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Attribute Name */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Tên thuộc tính{" "}
-                                <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={(e) =>
-                                    handleChange("name", e.target.value)
-                                }
-                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.name ? "border-red-500" : "border-gray-300"}`}
-                                placeholder="VD: Màu sắc, Kích thước, RAM"
-                                required
-                            />
-                            {errors.name && (
-                                <p className="mt-1 text-sm text-red-600">
-                                    {errors.name}
-                                </p>
-                            )}
+            <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                            <h3 className="font-semibold text-gray-800">
+                                Thông tin chung
+                            </h3>
                         </div>
-
-                        {/* Attribute Code */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Mã thuộc tính{" "}
-                                <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.code}
-                                onChange={(e) =>
-                                    handleChange(
-                                        "code",
-                                        e.target.value.toUpperCase(),
-                                    )
-                                }
-                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.code ? "border-red-500" : "border-gray-300"}`}
-                                placeholder="VD: COLOR_ATTR, SIZE_ATTR"
-                                required
-                                disabled={isEditMode} // Không cho sửa code khi edit
-                            />
-                            {errors.code && (
-                                <p className="mt-1 text-sm text-red-600">
-                                    {errors.code}
-                                </p>
-                            )}
-                            <p className="mt-1 text-xs text-gray-500">
-                                Mã duy nhất, viết hoa, dùng gạch dưới. Không thể
-                                thay đổi sau khi tạo.
-                            </p>
-                        </div>
-
-                        {/* Unit */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Đơn vị (Tuỳ chọn)
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.unit}
-                                onChange={(e) =>
-                                    handleChange("unit", e.target.value)
-                                }
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="VD: GB, inch, kg, tháng"
-                            />
-                            <p className="mt-1 text-xs text-gray-500">
-                                Để trống nếu không có đơn vị
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Data Configuration Section */}
-                <div className="mb-8">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        Cấu hình dữ liệu
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Data Type */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Kiểu dữ liệu{" "}
-                                <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                                value={formData.data_type}
-                                onChange={(e) =>
-                                    handleChange("data_type", e.target.value)
-                                }
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                {dataTypeOptions.map((option) => (
-                                    <option
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Input Type */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Kiểu nhập{" "}
-                                <span className="text-red-500">*</span>
-                            </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {inputTypeOptions.map((option) => (
-                                    <label
-                                        key={option.value}
-                                        className={`flex items-center p-3 border rounded-lg cursor-pointer ${formData.input_type === option.value ? "border-blue-500 bg-blue-50" : "border-gray-300"}`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="input_type"
-                                            value={option.value}
-                                            checked={
-                                                formData.input_type ===
-                                                option.value
-                                            }
-                                            onChange={(e) =>
-                                                handleChange(
-                                                    "input_type",
-                                                    e.target.value,
-                                                )
-                                            }
-                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                                        />
-                                        <span className="ml-2 text-sm text-gray-700">
-                                            {option.label}
-                                        </span>
+                        <div className="p-6 space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-gray-700">
+                                        Tên thuộc tính{" "}
+                                        <span className="text-red-500">*</span>
                                     </label>
-                                ))}
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) =>
+                                            handleNameChange(e.target.value)
+                                        }
+                                        className={`w-full px-3 py-2 border rounded-lg ${errors.name ? "border-red-500" : "border-gray-300"}`}
+                                        placeholder="Ví dụ: Màu sắc"
+                                    />
+                                    {errors.name && (
+                                        <p className="text-xs text-red-500">
+                                            {errors.name}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-gray-700">
+                                        Mã định danh (Code){" "}
+                                        <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.code}
+                                        disabled={isEditMode}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                code: e.target.value.toUpperCase(),
+                                            })
+                                        }
+                                        className="w-full px-3 py-2 border rounded-lg bg-gray-50 font-mono text-sm uppercase"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-gray-700">
+                                    Đơn vị tính
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.unit}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            unit: e.target.value,
+                                        })
+                                    }
+                                    className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-lg"
+                                    placeholder="VD: kg, cm..."
+                                />
                             </div>
                         </div>
                     </div>
+
+                    {/* Kiểm tra hasOptions dựa trên inputType mới */}
+                    {INPUT_TYPES.find((t) => t.id === formData.inputType)
+                        ?.hasOptions && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                                <h3 className="font-semibold text-gray-800">
+                                    Danh sách giá trị (Options)
+                                </h3>
+                                <button
+                                    onClick={addOption}
+                                    className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                                >
+                                    <PlusIcon className="w-4 h-4" /> Thêm giá
+                                    trị
+                                </button>
+                            </div>
+                            <div className="p-4 space-y-3">
+                                <div className="grid grid-cols-12 gap-3 text-xs font-semibold text-gray-500 uppercase px-2">
+                                    <div className="col-span-1"></div>
+                                    <div className="col-span-5">
+                                        Nhãn hiển thị
+                                    </div>
+                                    <div className="col-span-5">
+                                        Giá trị nội bộ
+                                    </div>
+                                    <div className="col-span-1"></div>
+                                </div>
+                                {options.map((opt) => (
+                                    <div
+                                        key={opt.id}
+                                        className="grid grid-cols-12 gap-3 items-center group"
+                                    >
+                                        <div className="col-span-1 flex justify-center text-gray-300">
+                                            <Bars3Icon className="w-5 h-5" />
+                                        </div>
+                                        <div className="col-span-5">
+                                            <input
+                                                type="text"
+                                                value={opt.displayName}
+                                                onChange={(e) =>
+                                                    handleOptionChange(
+                                                        opt.id,
+                                                        "displayName",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md"
+                                                placeholder="Nhãn (VD: Đỏ)"
+                                            />
+                                        </div>
+                                        <div className="col-span-5">
+                                            <input
+                                                type="text"
+                                                value={opt.value}
+                                                onChange={(e) =>
+                                                    handleOptionChange(
+                                                        opt.id,
+                                                        "value",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md font-mono"
+                                                placeholder="Giá trị (VD: RED)"
+                                            />
+                                        </div>
+                                        <div className="col-span-1 flex justify-center">
+                                            <button
+                                                onClick={() =>
+                                                    removeOption(opt.id)
+                                                }
+                                                className="p-1.5 text-gray-400 hover:text-red-500"
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {errors.options && (
+                                    <p className="text-sm text-red-500 text-center">
+                                        {errors.options}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Business Configuration Section */}
-                <div className="mb-8">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        Cấu hình nghiệp vụ
-                    </h2>
-                    <div className="space-y-4">
-                        <label className="flex items-start p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <div className="space-y-6">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                        <h3 className="font-semibold text-gray-800 mb-4">
+                            Loại dữ liệu
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            {INPUT_TYPES.map((type) => (
+                                <button
+                                    key={type.id}
+                                    type="button"
+                                    onClick={() =>
+                                        setFormData({
+                                            ...formData,
+                                            inputType: type.id,
+                                            dataType: type.dataType,
+                                        })
+                                    }
+                                    className={`flex flex-col items-center justify-center p-3 rounded-lg border text-sm transition-all ${formData.inputType === type.id ? "border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500" : "border-gray-200 hover:bg-gray-50"}`}
+                                >
+                                    <span className="text-xl mb-1">
+                                        {type.icon}
+                                    </span>
+                                    {type.label}
+                                </button>
+                            ))}
+                        </div>
+                        {/* Hiển thị dataType hiện tại để debug/kiểm tra */}
+                        <div className="mt-3 text-xs text-gray-500 text-center">
+                            Data Type:{" "}
+                            <span className="font-mono font-semibold">
+                                {formData.dataType}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
+                        <h3 className="font-semibold text-gray-800 mb-2">
+                            Cấu hình
+                        </h3>
+                        <label className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
                             <input
                                 type="checkbox"
-                                checked={formData.is_required}
+                                checked={formData.isRequired}
                                 onChange={(e) =>
-                                    handleChange(
-                                        "is_required",
-                                        e.target.checked,
-                                    )
+                                    setFormData({
+                                        ...formData,
+                                        isRequired: e.target.checked,
+                                    })
                                 }
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+                                className="w-4 h-4 text-blue-600 rounded"
                             />
-                            <div className="ml-3">
-                                <span className="text-sm font-medium text-gray-700">
-                                    Bắt buộc
-                                </span>
-                                <p className="text-xs text-gray-500">
-                                    Thuộc tính này phải được nhập khi tạo sản
-                                    phẩm
-                                </p>
-                            </div>
+                            <span className="text-sm font-medium">
+                                Bắt buộc nhập
+                            </span>
                         </label>
-
+                        <label className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.isFilterable}
+                                onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        isFilterable: e.target.checked,
+                                    })
+                                }
+                                className="w-4 h-4 text-blue-600 rounded"
+                            />
+                            <span className="text-sm font-medium">
+                                Dùng để lọc (Filter)
+                            </span>
+                        </label>
                         <label
-                            className={`flex items-start p-3 border rounded-lg cursor-pointer ${["SELECT", "RADIO", "CHECKBOX"].includes(formData.input_type) ? "border-gray-300 bg-gray-100" : "border-gray-300 hover:bg-gray-50"}`}
+                            className={`flex items-center gap-3 p-2 rounded cursor-pointer ${formData.isVariant ? "bg-indigo-50" : "hover:bg-gray-50"}`}
                         >
                             <input
                                 type="checkbox"
-                                checked={
-                                    formData.is_variant ||
-                                    ["SELECT", "RADIO", "CHECKBOX"].includes(
-                                        formData.input_type,
-                                    )
-                                }
+                                checked={formData.isVariant}
                                 onChange={(e) =>
-                                    !["SELECT", "RADIO", "CHECKBOX"].includes(
-                                        formData.input_type,
-                                    ) &&
-                                    handleChange("is_variant", e.target.checked)
+                                    setFormData({
+                                        ...formData,
+                                        isVariant: e.target.checked,
+                                    })
                                 }
-                                disabled={[
-                                    "SELECT",
-                                    "RADIO",
-                                    "CHECKBOX",
-                                ].includes(formData.input_type)}
-                                className={`h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1 ${["SELECT", "RADIO", "CHECKBOX"].includes(formData.input_type) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                className="w-4 h-4 text-indigo-600 rounded"
                             />
-                            <div className="ml-3">
-                                <span className="text-sm font-medium text-gray-700">
-                                    Là biến thể
-                                </span>
-                                <p className="text-xs text-gray-500">
-                                    Dùng để tạo SKU sản phẩm. Tự động bật khi
-                                    chọn kiểu nhập SELECT/RADIO/CHECKBOX
-                                </p>
-                            </div>
-                        </label>
-
-                        <label className="flex items-start p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={formData.is_filterable}
-                                onChange={(e) =>
-                                    handleChange(
-                                        "is_filterable",
-                                        e.target.checked,
-                                    )
-                                }
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
-                            />
-                            <div className="ml-3">
-                                <span className="text-sm font-medium text-gray-700">
-                                    Có thể lọc
-                                </span>
-                                <p className="text-xs text-gray-500">
-                                    Hiển thị trong bộ lọc sản phẩm trên trang
-                                    frontend
-                                </p>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                {/* Info Box */}
-                {formData.input_type === "SELECT" && (
-                    <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex">
-                            <InformationCircleIcon className="h-5 w-5 text-blue-400 mr-2" />
                             <div>
-                                <h3 className="text-sm font-medium text-blue-800">
-                                    Lưu ý về kiểu nhập SELECT
-                                </h3>
-                                <p className="mt-1 text-sm text-blue-700">
-                                    Với kiểu nhập SELECT, bạn cần thêm các giá
-                                    trị (options) sau khi tạo thuộc tính. Các
-                                    giá trị này sẽ hiển thị trong dropdown khi
-                                    tạo sản phẩm.
-                                </p>
+                                <div className="text-sm font-medium">
+                                    Dùng làm biến thể
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                    Tạo SKU (Màu, Size...)
+                                </div>
                             </div>
-                        </div>
+                        </label>
                     </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex justify-end space-x-4 pt-6 border-t">
-                    <button
-                        type="button"
-                        onClick={handleCancel}
-                        className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                    >
-                        Hủy
-                    </button>
-                    <button
-                        type="submit"
-                        className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                        <CheckCircleIcon className="h-5 w-5 mr-2" />
-                        {isEditMode ? "Cập nhật" : "Tạo thuộc tính"}
-                    </button>
                 </div>
-            </form>
+            </div>
         </div>
     );
 };

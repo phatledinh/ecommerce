@@ -1,6 +1,6 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.2.2" // Lưu ý: Spring Boot 4 chưa ra mắt, bạn hãy kiểm tra lại version này nhé (ví dụ dùng 3.2.x hoặc 3.4.x)
+    id("org.springframework.boot") version "3.2.2"
     id("io.spring.dependency-management") version "1.1.7"
 }
 
