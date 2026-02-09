@@ -1,6 +1,8 @@
 package com.phatle.ecommerce.service;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,14 +23,17 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        com.phatle.ecommerce.domain.user.User appUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-       com.phatle.ecommerce.domain.user.User appUser = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        List<SimpleGrantedAuthority> authorities = appUser.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getCode()))
+                .collect(Collectors.toList());
 
         return new User(
                 appUser.getEmail(),
                 appUser.getPassword(),
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                authorities
         );
     }
 }

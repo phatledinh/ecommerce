@@ -21,13 +21,15 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.phatle.ecommerce.util.SecurityUtil;
 
 @Configuration
-@EnableMethodSecurity(securedEnabled = true)
+@EnableMethodSecurity(securedEnabled = true, prePostEnabled = true)
 public class SecurityConfiguration {
 
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
@@ -73,12 +75,15 @@ public class SecurityConfiguration {
 
                         .requestMatchers("/api/orders/**").authenticated()
                         .requestMatchers("/api/cart/**").authenticated()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").authenticated()
 
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(jwt -> jwt.decoder(jwtDecoder()))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .decoder(jwtDecoder())
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                        )
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
@@ -109,5 +114,18 @@ public class SecurityConfiguration {
                 keyBytes,
                 SecurityUtil.JWT_ALGORITHM.getName()
         );
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+
+        grantedAuthoritiesConverter.setAuthorityPrefix("");
+
+        grantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
+
+        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
+        return jwtAuthenticationConverter;
     }
 }

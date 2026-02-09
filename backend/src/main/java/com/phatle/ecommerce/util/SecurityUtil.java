@@ -46,27 +46,22 @@ public class SecurityUtil {
 
     public String createAccessToken(Authentication authentication, UserResponse user) {
         Instant now = Instant.now();
-        Instant validity = now.plus(jwtExpiration, ChronoUnit.SECONDS);
+        Instant validity = now.plus(this.jwtExpiration, ChronoUnit.SECONDS);
 
-        List<String> roles = new ArrayList<>();
-        if (user.getRoles() != null) {
-            roles = user.getRoles().stream()
-                    .map(UserResponse.RoleResponse::getName)
-                    .collect(Collectors.toList());
-        }
+        List<String> listRoles = authentication.getAuthorities().stream()
+                .map(grantedAuthority -> grantedAuthority.getAuthority())
+                .collect(Collectors.toList());
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuedAt(now)
                 .expiresAt(validity)
                 .subject(authentication.getName())
-                .claim("email", user.getEmail())
-                .claim("roles", roles)
-                .claim("id", user.getId())
+                .claim("user", user)
+                .claim("roles", listRoles)
                 .build();
 
         JwsHeader header = JwsHeader.with(JWT_ALGORITHM).build();
-        return jwtEncoder.encode(JwtEncoderParameters.from(header, claims))
-                .getTokenValue();
+        return this.jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
     }
 
     public String createRefreshToken(String email, UserResponse user) {

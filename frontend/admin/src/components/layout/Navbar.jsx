@@ -8,7 +8,7 @@ import {
     Cog6ToothIcon,
     ClipboardDocumentListIcon,
 } from "@heroicons/react/24/outline";
-import axiosClient from "../../api/axiosClient";
+import axiosClient from "../../services/axiosClient";
 
 const Navbar = () => {
     const navigate = useNavigate();
@@ -16,15 +16,17 @@ const Navbar = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [user, setUser] = useState(null);
 
-    // Lấy thông tin user khi component mount
     useEffect(() => {
         const userStr = localStorage.getItem("user");
-        if (userStr) {
-            try {
-                setUser(JSON.parse(userStr));
-            } catch (e) {
-                console.error("Lỗi parse user", e);
-            }
+
+        if (!userStr || userStr === "undefined") return;
+
+        try {
+            const parsedUser = JSON.parse(userStr);
+            setUser(parsedUser);
+            console.log("User from localStorage:", parsedUser);
+        } catch {
+            setUser(null);
         }
     }, []);
 
@@ -38,14 +40,9 @@ const Navbar = () => {
             await axiosClient.post("/auth/logout");
         } catch (error) {
             console.error("Lỗi khi logout:", error);
-        } finally {
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("user");
-
-            setIsDropdownOpen(false);
-
-            navigate("/admin/login");
         }
+
+        localStorage.clear();
     };
 
     return (

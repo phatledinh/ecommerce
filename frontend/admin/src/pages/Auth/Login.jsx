@@ -9,7 +9,8 @@ import {
     ArrowRightIcon,
     BuildingStorefrontIcon,
 } from "@heroicons/react/24/outline";
-import axiosClient from "../../api/axiosClient";
+import axiosClient from "../../services/axiosClient";
+import Swal from "sweetalert2"; // Đừng quên import Swal
 
 const Login = () => {
     const navigate = useNavigate();
@@ -50,10 +51,7 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        if (!validateForm()) {
-            return;
-        }
+        if (!validateForm()) return;
 
         setIsLoading(true);
 
@@ -63,22 +61,36 @@ const Login = () => {
                 password: formData.password,
             });
 
-            const { accessToken, user } = response.data;
+            const result = response.data?.data || response.data;
 
-            localStorage.setItem("accessToken", accessToken);
+            const accessToken = result?.access_token || result?.accessToken;
+            const user = result?.user;
 
-            localStorage.setItem("user", JSON.stringify(user));
+            if (accessToken && user) {
+                localStorage.setItem("accessToken", accessToken);
+                localStorage.setItem("user", JSON.stringify(user));
 
-            navigate("/admin");
+                await Swal.fire({
+                    icon: "success",
+                    title: "Đăng nhập thành công",
+                    text: `Xin chào, ${user.fullName}`,
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+
+                navigate("/admin");
+            } else {
+                throw new Error("Không tìm thấy access_token trong phản hồi");
+            }
         } catch (error) {
             console.error("Login failed:", error);
-
             const errorMessage =
-                error.response?.data?.message ||
-                "Email hoặc mật khẩu không chính xác.";
+                error.response?.data?.message || "Đăng nhập thất bại.";
 
-            setErrors({
-                email: errorMessage,
+            Swal.fire({
+                icon: "error",
+                title: "Lỗi",
+                text: errorMessage,
             });
         } finally {
             setIsLoading(false);
@@ -87,7 +99,6 @@ const Login = () => {
 
     return (
         <div className="min-h-screen bg-gray-900">
-            {/* Background Pattern */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-gray-900 opacity-90"></div>
                 <div className="absolute top-0 left-0 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
@@ -108,10 +119,8 @@ const Login = () => {
                 ></div>
             </div>
 
-            {/* Main Content */}
             <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
                 <div className="w-full max-w-md">
-                    {/* Logo/Brand */}
                     <div className="text-center mb-8">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/20 backdrop-blur-sm border border-blue-500/30 mb-4">
                             <BuildingStorefrontIcon className="h-8 w-8 text-blue-400" />
@@ -124,11 +133,9 @@ const Login = () => {
                         </p>
                     </div>
 
-                    {/* Login Card */}
                     <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
                         <div className="p-8 sm:p-10">
                             <form onSubmit={handleSubmit} className="space-y-6">
-                                {/* Email Input */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         Email
@@ -153,14 +160,13 @@ const Login = () => {
                                             disabled={isLoading}
                                         />
                                     </div>
-                                    {errors.email && (
+                                    {errors.email && errors.email !== " " && (
                                         <p className="mt-1 text-sm text-red-400">
                                             {errors.email}
                                         </p>
                                     )}
                                 </div>
 
-                                {/* Password Input */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         Mật khẩu
@@ -202,14 +208,14 @@ const Login = () => {
                                             )}
                                         </button>
                                     </div>
-                                    {errors.password && (
-                                        <p className="mt-1 text-sm text-red-400">
-                                            {errors.password}
-                                        </p>
-                                    )}
+                                    {errors.password &&
+                                        errors.password !== " " && (
+                                            <p className="mt-1 text-sm text-red-400">
+                                                {errors.password}
+                                            </p>
+                                        )}
                                 </div>
 
-                                {/* Options */}
                                 <div className="flex items-center justify-between">
                                     <label className="flex items-center cursor-pointer group">
                                         <input
@@ -240,7 +246,6 @@ const Login = () => {
                                     </button>
                                 </div>
 
-                                {/* Submit Button */}
                                 <button
                                     type="submit"
                                     disabled={isLoading}
@@ -264,7 +269,6 @@ const Login = () => {
                                 </button>
                             </form>
 
-                            {/* Security Badge */}
                             <div className="mt-8 pt-6 border-t border-white/10">
                                 <div className="flex items-center justify-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-4 py-2 backdrop-blur-sm">
                                     <ShieldCheckIcon className="h-4 w-4 text-green-400" />
@@ -276,7 +280,6 @@ const Login = () => {
                         </div>
                     </div>
 
-                    {/* Footer */}
                     <div className="mt-8 text-center">
                         <p className="text-xs text-gray-500">
                             © {new Date().getFullYear()} DPShop Inc. All rights

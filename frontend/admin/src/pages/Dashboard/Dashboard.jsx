@@ -19,7 +19,7 @@ ChartJS.register(
     Title,
     Tooltip,
     Legend,
-    ArcElement
+    ArcElement,
 );
 
 const Dashboard = () => {
@@ -448,14 +448,14 @@ const Dashboard = () => {
                                             <div className="space-y-1">
                                                 <div className="font-semibold">
                                                     {formatPrice(
-                                                        product.price_new
+                                                        product.price_new,
                                                     )}
                                                 </div>
                                                 {product.price_old &&
                                                     product.price_old > 0 && (
                                                         <div className="text-red-500 line-through text-xs">
                                                             {formatPrice(
-                                                                product.price_old
+                                                                product.price_old,
                                                             )}
                                                         </div>
                                                     )}
