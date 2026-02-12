@@ -1,6 +1,7 @@
 package com.phatle.ecommerce.controller;
 
 import com.phatle.ecommerce.dto.AttributeDTO;
+import com.phatle.ecommerce.dto.AttributeOptionDTO;
 import com.phatle.ecommerce.service.AttributeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -44,5 +45,13 @@ public class AttributeController {
     public ResponseEntity<Void> deleteAttribute(@PathVariable Long id) {
         attributeService.deleteAttribute(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/options")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_PRODUCT_MANAGER')")
+    public ResponseEntity<AttributeOptionDTO> createAttributeOption(
+            @PathVariable Long id,
+            @RequestBody AttributeOptionDTO optionDTO) {
+        return ResponseEntity.ok(attributeService.createAttributeOption(id, optionDTO));
     }
 }

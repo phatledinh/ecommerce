@@ -127,6 +127,40 @@ public class AttributeService {
         attributeRepository.deleteById(id);
     }
 
+    @Transactional
+    public AttributeOptionDTO createAttributeOption(Long attributeId, AttributeOptionDTO optionDto) {
+        Attribute attribute = attributeRepository.findById(attributeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thuộc tính với ID: " + attributeId));
+
+        boolean exists = attribute.getOptions().stream()
+                .anyMatch(opt -> opt.getValue().equalsIgnoreCase(optionDto.getValue()));
+        if (exists) {
+            throw new BadRequestException("Giá trị '" + optionDto.getValue() + "' đã tồn tại trong thuộc tính này.");
+        }
+
+        AttributeOption newOption = mapOptionToEntity(optionDto);
+
+        attribute.addOption(newOption);
+
+        Attribute savedAttribute = attributeRepository.save(attribute);
+
+        AttributeOption savedOption = savedAttribute.getOptions().stream()
+                .filter(opt -> opt.getValue().equals(optionDto.getValue()))
+                .findFirst()
+                .orElse(newOption);
+
+        return mapOptionToDTO(savedOption);
+    }
+
+    private AttributeOptionDTO mapOptionToDTO(AttributeOption entity) {
+        AttributeOptionDTO dto = new AttributeOptionDTO();
+        dto.setId(entity.getId());
+        dto.setDisplayName(entity.getDisplayName());
+        dto.setValue(entity.getValue());
+        dto.setSortOrder(entity.getSortOrder());
+        return dto;
+    }
+
     private AttributeDTO mapToDTO(Attribute entity) {
         AttributeDTO dto = new AttributeDTO();
         dto.setId(entity.getId());
@@ -140,14 +174,9 @@ public class AttributeService {
         dto.setIsFilterable(entity.getIsFilterable());
 
         if (entity.getOptions() != null) {
-            dto.setOptions(entity.getOptions().stream().map(opt -> {
-                AttributeOptionDTO optDto = new AttributeOptionDTO();
-                optDto.setId(opt.getId());
-                optDto.setDisplayName(opt.getDisplayName());
-                optDto.setValue(opt.getValue());
-                optDto.setSortOrder(opt.getSortOrder());
-                return optDto;
-            }).collect(Collectors.toList()));
+            dto.setOptions(entity.getOptions().stream()
+                    .map(this::mapOptionToDTO) // Sử dụng hàm mới tách
+                    .collect(Collectors.toList()));
         }
         return dto;
     }

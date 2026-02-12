@@ -22,6 +22,8 @@ public class Category extends BaseEntity {
     private String slug;
     
     private String thumbnail;
+
+    private String description;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
@@ -30,11 +32,10 @@ public class Category extends BaseEntity {
     @OneToMany(mappedBy = "parent")
     @Builder.Default
     private Set<Category> children = new HashSet<>();
-    
-    @Column(name = "level")
-    @Builder.Default
-    private Integer level = 0;
-    
+
+    @Column(name = "sort_order")
+    private Integer sortOrder = 0;
+
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
